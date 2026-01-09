@@ -1,0 +1,39 @@
+<div class="result-wrapper">
+
+    <div class="result-card">
+        
+        <h2 class="app-title">{{ name }}</h2>
+
+        <div class="meta-grid">
+            <div><span>⭐ Rating</span><p>{{ rating }}</p></div>
+            <div><span>⬇ Installs</span><p>{{ installs }}</p></div>
+            <div><span>🏦 NBFC</span><p>{{ nbfc_registered }}</p></div>
+        </div>
+
+        <div class="section">
+            <h4>📝 Review Sentiment</h4>
+            <p>{{ sentiment }}</p>
+        </div>
+
+        <div class="section">
+            <h4>🔐 Permission Risk</h4>
+            <p>{{ permission_risk }}</p>
+        </div>
+
+        <div class="status-box {{ status|lower }}">
+        <strong>Status:</strong> {{ status }}
+       </div>
+
+
+        <p class="reason">{{ reason }}</p>
+
+        <a href="/" onclick="localStorage.setItem('openSection','scan')" class="cta-btn">
+    Check Another App
+</a>
+
+
+    </div>
+
+</div>
+
+<script src="{{ url_for('static', filename='js/script.js') }}"></script>

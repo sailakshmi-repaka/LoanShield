@@ -1,0 +1,6 @@
+Flask
+google-play-scraper
+scikit-learn
+pandas
+joblib
+gunicorn
