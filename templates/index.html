@@ -18,7 +18,7 @@
     </div>
 
     <ul class="nav-right">
-        <li><a href="/" onclick="showSection('home')">Home</a></li>
+        <li><a href="#" onclick="showSection('home')">Home</a></li>
         <li><a href="#" onclick="showSection('scan')">Scan</a></li>
         <li><a href="#" onclick="showSection('report')">Report</a></li>
         <li><a href="#" onclick="showSection('guidelines')">Guidelines</a></li>
@@ -53,7 +53,6 @@
 <section id="scan" class="page-section">
     <h2>Scan Loan Application</h2>
 
-    <!-- ✅ FIXED FORM -->
     <form action="/predict" method="POST">
         <input
             type="text"
@@ -78,7 +77,8 @@
     <div class="report-container">
         <h2>Report Fake Loan App</h2>
 
-        <form action="/report" method="POST">
+        <!-- ✅ AJAX FIX -->
+        <form id="reportForm">
             <input
                 type="text"
                 name="app_name"
@@ -123,5 +123,26 @@
 </section>
 
 <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+
+<!-- ✅ REPORT FIX SCRIPT -->
+<script>
+document.getElementById("reportForm")?.addEventListener("submit", function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+
+    fetch("/report", {
+        method: "POST",
+        body: formData
+    })
+    .then(res => res.text())
+    .then(msg => {
+        alert(msg);
+        this.reset();
+    })
+    .catch(() => alert("Error submitting report"));
+});
+</script>
+
 </body>
 </html>
