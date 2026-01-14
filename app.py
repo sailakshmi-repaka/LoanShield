@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, session
 from google_play_scraper import app as playstore_app, reviews
+from google_play_scraper.exceptions import NotFoundError
 import pandas as pd
 import os
 
@@ -52,7 +53,7 @@ def find_nbfc_by_app_id(app_id, app_title=""):
 def is_loan_app(title):
     return any(k in title.lower() for k in ["loan", "credit", "emi", "finance"])
 
-# ---------------- REAL REVIEW ANALYSIS (ADDED) ----------------
+# ---------------- REAL REVIEW ANALYSIS ----------------
 def analyze_reviews(app_id, max_reviews=120):
     try:
         result, _ = reviews(app_id, lang="en", country="in", count=max_reviews)
@@ -88,9 +89,9 @@ def analyze_reviews(app_id, max_reviews=120):
             positive += 1
 
     total = positive + negative
-    neg_ratio = negative / total if total else 0
+    neg_ratio = negative / total if total else 1
 
-    # ⭐ SENTIMENT LABEL (WHAT UI SHOWS)
+    # Sentiment label (UI)
     if neg_ratio >= 0.35:
         sentiment = "Negative"
     elif neg_ratio >= 0.15:
@@ -179,10 +180,25 @@ def predict():
     user_input = request.form.get("app_name")
     email = session["email"]
 
-    details = playstore_app(user_input)
+    # ✅ FIX: prevent server crash
+    try:
+        details = playstore_app(user_input)
+    except NotFoundError:
+        return render_template(
+            "result.html",
+            name=user_input,
+            rating="N/A",
+            installs="N/A",
+            nbfc_registered="No",
+            sentiment="Negative",
+            review_summary="App not found on Play Store. This is risky.",
+            permission_risk="High Risk",
+            status="Suspicious",
+            reason="App does not exist on Google Play Store."
+        )
+
     app_title = details.get("title", user_input)
     app_id = details.get("appId", user_input)
-
     rating = details.get("score", 0)
     installs = details.get("installs", "N/A")
 
@@ -194,7 +210,11 @@ def predict():
     status = "Safe"
     reason = "No major risk indicators detected."
 
-    if not is_loan_app(app_title):
+    if review_data["total"] == 0:
+        status = "Caution"
+        reason = "No user reviews available. This increases risk."
+
+    elif not is_loan_app(app_title):
         status = "Not a Loan App"
         reason = "This application does not provide loan services."
 
@@ -223,8 +243,8 @@ def predict():
         rating=rating if rating else "N/A",
         installs=installs,
         nbfc_registered="Yes" if nbfc_registered else "No",
-        sentiment=review_data["sentiment"],        # ⭐ ONLY WORD
-        review_summary=review_data["summary"],     # ⭐ DETAILED TEXT
+        sentiment=review_data["sentiment"],
+        review_summary=review_data["summary"],
         permission_risk=permission_risk,
         status=status,
         reason=reason
