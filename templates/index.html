@@ -9,14 +9,29 @@
 
 <!-- NAVBAR -->
 <nav class="navbar">
-    <div class="logo">LoanShield</div>
-    <ul>
-        <li><a href="#" onclick="showSection('home')">Home</a></li>
+    <div class="nav-left">
+        <div class="logo">LoanShield</div>
+
+        {% if session.get('name') %}
+            <div class="greeting">Hi, {{ session['name'] }}</div>
+        {% endif %}
+    </div>
+
+    <ul class="nav-right">
+        <li><a href="/">Home</a></li>
         <li><a href="#" onclick="showSection('scan')">Scan</a></li>
         <li><a href="#" onclick="showSection('report')">Report</a></li>
         <li><a href="#" onclick="showSection('guidelines')">Guidelines</a></li>
+
+        {% if session.get('name') %}
+            <li><a href="/logout" class="logout-btn">Logout</a></li>
+        {% else %}
+            <li><a href="/login">Login</a></li>
+            <li><a href="/register" class="nav-btn">Register</a></li>
+        {% endif %}
     </ul>
 </nav>
+
 
 <!-- HOME -->
 <section id="home" class="page-section active hero">
@@ -39,19 +54,26 @@
 <section id="scan" class="page-section">
     <h2>Scan Loan Application</h2>
 
-    <!-- IMPORTANT CHANGE: removed action & method -->
-    <form id="scanForm">
-        <input
-            type="text"
-            id="appInput"
-            name="app_name"
-            placeholder="Enter App Name or Play Store App ID"
-            required
-        >
-        <button type="submit">Check App</button>
-    </form>
+   <form id="scanForm">
+    <input
+        type="text"
+        id="appInput"
+        name="app_name"
+        placeholder="Enter App Name or Play Store App ID"
+        {% if not session.get('name') %}disabled{% endif %}
+        required
+    >
 
-    <!-- RESULT APPEARS HERE -->
+    {% if session.get('name') %}
+        <button type="submit">Check App</button>
+    {% else %}
+        <button type="button" class="disabled-btn" onclick="window.location.href='/login'">
+            Login to Scan
+        </button>
+    {% endif %}
+</form>
+
+
     <div id="scanResultBox"></div>
 </section>
 
@@ -59,11 +81,28 @@
 <section id="report" class="page-section">
     <div class="report-container">
         <h2>Report Fake Loan App</h2>
-        <form id="reportForm">
-            <input type="text" name="app_name" placeholder="Enter app name" required>
-            <textarea name="reason" placeholder="Why is this app fake?" required></textarea>
-            <button type="submit">Submit Report</button>
-        </form>
+        <form id="reportForm" action="/report" method="POST">
+
+    <input type="text" name="app_name"
+           placeholder="Enter app name"
+           {% if not session.get('name') %}disabled{% endif %}
+           required>
+
+    <textarea name="reason"
+              placeholder="Why is this app fake?"
+              {% if not session.get('name') %}disabled{% endif %}
+              required></textarea>
+
+    {% if session.get('name') %}
+        <button type="submit">Submit Report</button>
+    {% else %}
+        <button type="button" class="disabled-btn" onclick="window.location.href='/login'">
+            Login to Report
+        </button>
+    {% endif %}
+
+</form>
+
         <p id="reportMessage"></p>
     </div>
 </section>
@@ -72,18 +111,17 @@
 <section id="guidelines" class="page-section">
     <h2>Safety Guidelines</h2>
     <ul class="guidelines">
-    <li>✔ Download loan apps only from Google Play Store</li>
-    <li>✔ Verify NBFC or RBI registration</li>
-    <li>✔ Avoid apps shared via WhatsApp or SMS</li>
-    <li>✔ Check developer and company details</li>
-    <li>✔ Read recent user reviews carefully</li>
-    <li>✔ Beware of apps asking for contacts or SMS access</li>
-    <li>✔ Avoid advance payment or hidden charges</li>
-    <li>✔ Genuine apps never threaten or harass users</li>
-    <li>✔ Instant loan approval without checks is risky</li>
-    <li>✔ Report suspicious apps immediately</li>
-</ul>
-
+        <li>✔ Download loan apps only from Google Play Store</li>
+        <li>✔ Verify NBFC or RBI registration</li>
+        <li>✔ Avoid apps shared via WhatsApp or SMS</li>
+        <li>✔ Check developer and company details</li>
+        <li>✔ Read recent user reviews carefully</li>
+        <li>✔ Beware of apps asking for contacts or SMS access</li>
+        <li>✔ Avoid advance payment or hidden charges</li>
+        <li>✔ Genuine apps never threaten or harass users</li>
+        <li>✔ Instant loan approval without checks is risky</li>
+        <li>✔ Report suspicious apps immediately</li>
+    </ul>
 </section>
 
 <script src="{{ url_for('static', filename='js/script.js') }}"></script>

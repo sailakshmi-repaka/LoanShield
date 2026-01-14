@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login | LoanShield</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="auth-body">
+
+<nav class="navbar">
+    <div class="nav-left">
+        <div class="logo">LoanShield</div>
+
+        {% if session.get('name') %}
+            <div class="greeting">Hi, {{ session['name'] }}</div>
+        {% endif %}
+    </div>
+
+    <ul class="nav-right">
+        <li><a href="/">Home</a></li>
+        <li><a href="#" onclick="showSection('scan')">Scan</a></li>
+        <li><a href="#" onclick="showSection('report')">Report</a></li>
+        <li><a href="#" onclick="showSection('guidelines')">Guidelines</a></li>
+
+        {% if session.get('name') %}
+            <li><a href="/logout" class="logout-btn">Logout</a></li>
+        {% else %}
+            <li><a href="/login">Login</a></li>
+            <li><a href="/register" class="nav-btn">Register</a></li>
+        {% endif %}
+    </ul>
+</nav>
+
+
+<div class="auth-card">
+    <h2>User Login</h2>
+    <p class="auth-subtitle">Secure access to LoanShield</p>
+
+    <form method="POST" action="/login">
+        <div class="input-group">
+            <input type="email" name="email" placeholder="Email address" required>
+        </div>
+
+        <div class="input-group">
+            <input type="password" name="password" placeholder="Password" required>
+        </div>
+
+        <button type="submit" class="auth-btn">Login</button>
+    </form>
+
+    <p class="auth-footer">
+        New user? <a href="/register">Create account</a>
+    </p>
+</div>
+
+</body>
+</html>
