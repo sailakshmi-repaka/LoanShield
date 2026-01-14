@@ -18,7 +18,7 @@
     </div>
 
     <ul class="nav-right">
-        <li><a href="/">Home</a></li>
+        <li><a href="/" onclick="showSection('home')">Home</a></li>
         <li><a href="#" onclick="showSection('scan')">Scan</a></li>
         <li><a href="#" onclick="showSection('report')">Report</a></li>
         <li><a href="#" onclick="showSection('guidelines')">Guidelines</a></li>
@@ -31,7 +31,6 @@
         {% endif %}
     </ul>
 </nav>
-
 
 <!-- HOME -->
 <section id="home" class="page-section active hero">
@@ -54,56 +53,55 @@
 <section id="scan" class="page-section">
     <h2>Scan Loan Application</h2>
 
-   <form id="scanForm">
-    <input
-        type="text"
-        id="appInput"
-        name="app_name"
-        placeholder="Enter App Name or Play Store App ID"
-        {% if not session.get('name') %}disabled{% endif %}
-        required
-    >
+    <!-- ✅ FIXED FORM -->
+    <form action="/predict" method="POST">
+        <input
+            type="text"
+            name="app_name"
+            placeholder="Enter App Name or Play Store App ID"
+            {% if not session.get('name') %}disabled{% endif %}
+            required
+        >
 
-    {% if session.get('name') %}
-        <button type="submit">Check App</button>
-    {% else %}
-        <button type="button" class="disabled-btn" onclick="window.location.href='/login'">
-            Login to Scan
-        </button>
-    {% endif %}
-</form>
-
-
-    <div id="scanResultBox"></div>
+        {% if session.get('name') %}
+            <button type="submit">Check App</button>
+        {% else %}
+            <button type="button" class="disabled-btn" onclick="window.location.href='/login'">
+                Login to Scan
+            </button>
+        {% endif %}
+    </form>
 </section>
 
 <!-- REPORT -->
 <section id="report" class="page-section">
     <div class="report-container">
         <h2>Report Fake Loan App</h2>
-        <form id="reportForm" action="/report" method="POST">
 
-    <input type="text" name="app_name"
-           placeholder="Enter app name"
-           {% if not session.get('name') %}disabled{% endif %}
-           required>
+        <form action="/report" method="POST">
+            <input
+                type="text"
+                name="app_name"
+                placeholder="Enter app name"
+                {% if not session.get('name') %}disabled{% endif %}
+                required
+            >
 
-    <textarea name="reason"
-              placeholder="Why is this app fake?"
-              {% if not session.get('name') %}disabled{% endif %}
-              required></textarea>
+            <textarea
+                name="reason"
+                placeholder="Why is this app fake?"
+                {% if not session.get('name') %}disabled{% endif %}
+                required
+            ></textarea>
 
-    {% if session.get('name') %}
-        <button type="submit">Submit Report</button>
-    {% else %}
-        <button type="button" class="disabled-btn" onclick="window.location.href='/login'">
-            Login to Report
-        </button>
-    {% endif %}
-
-</form>
-
-        <p id="reportMessage"></p>
+            {% if session.get('name') %}
+                <button type="submit">Submit Report</button>
+            {% else %}
+                <button type="button" class="disabled-btn" onclick="window.location.href='/login'">
+                    Login to Report
+                </button>
+            {% endif %}
+        </form>
     </div>
 </section>
 
