@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, redirect, session
-from google_play_scraper import app as playstore_app, reviews
+from google_play_scraper import app as playstore_app, reviews,search
 from google_play_scraper.exceptions import NotFoundError
 import pandas as pd
 import os
@@ -36,11 +36,22 @@ def is_logged_in():
     return "email" in session
 
 def already_reported(email, app_name):
+    if df_reports.empty:
+        return False
+
     match = df_reports[
         (df_reports["email"] == email) &
         (df_reports["app_name"].str.lower() == app_name.lower())
     ]
     return not match.empty
+def get_report_count(app_name):
+    if df_reports.empty:
+        return 0
+
+    return len(
+        df_reports[df_reports["app_name"].str.lower() == app_name.lower()]
+    )
+
 
 # ---------------- CORE HELPERS ----------------
 def find_nbfc_by_app_id(app_id, app_title=""):
@@ -73,32 +84,26 @@ def analyze_reviews(app_id, max_reviews=120):
             "total": 0
         }
 
-    negative_keywords = [
-        "scam", "fraud", "fake", "harassment", "blackmail",
-        "threat", "abuse", "privacy", "cheat", "worst"
-    ]
-
-    positive = 0
-    negative = 0
-
-    for r in result:
-        text = r.get("content", "").lower()
-        if any(k in text for k in negative_keywords):
-            negative += 1
-        else:
-            positive += 1
-
-    total = positive + negative
-    neg_ratio = negative / total if total else 1
-
-    # Sentiment label (UI)
-    if neg_ratio >= 0.35:
-        sentiment = "Negative"
-    elif neg_ratio >= 0.15:
-        sentiment = "Mixed"
-    else:
-        sentiment = "Positive"
-
+    positive_words = ["good", "easy", "fast", "helpful", "smooth", "best"]
+    negative_words = [ "scam", "fraud", "fake", "harassment", "privacy", "permission", "contacts", "sms", "threat", "abuse", "cheat" ] 
+    positive = 0 
+    negative = 0 
+    permission_mentions = 0 
+    for r in result: 
+        text = r.get("content", "").lower() 
+        if any(w in text for w in positive_words): 
+         positive += 1 
+        if any(w in text for w in negative_words): 
+          negative += 1 
+        if any(w in text for w in ["permission", "contacts", "sms", "privacy"]): 
+          permission_mentions += 1 
+    total = len(result) 
+    # ---- Sentiment ---- 
+    if negative / total > 0.25: 
+        sentiment = "Mostly Negative" 
+    elif positive / total > 0.5: 
+        sentiment = "Mostly Positive" 
+    else: sentiment = "Mixed"
     summary = (
         f"Based on {total} recent user reviews: "
         f"{positive} positive, {negative} negative complaints detected."
@@ -107,7 +112,7 @@ def analyze_reviews(app_id, max_reviews=120):
     return {
         "sentiment": sentiment,
         "summary": summary,
-        "negative_ratio": neg_ratio,
+        "negative_ratio": negative/total,
         "total": total
     }
 
@@ -119,7 +124,10 @@ def permission_risk_analysis_by_reviews(app_id, max_reviews=100):
         return "High Risk"
 
     keywords = ["permission", "privacy", "sms", "contacts", "location", "camera"]
-    mentions = sum(any(k in r["content"].lower() for k in keywords) for r in result)
+    mentions = sum(
+        any(k in r.get("content", "").lower() for k in keywords)
+        for r in result
+    )
     ratio = mentions / len(result) if result else 1
 
     if ratio > 0.1:
@@ -136,7 +144,10 @@ def login():
         password = request.form["password"].strip()
         df_users = load_users()
 
-        user = df_users[(df_users["email"] == email) & (df_users["password"] == password)]
+        user = df_users[
+            (df_users["email"] == email) &
+            (df_users["password"] == password)
+        ]
         if not user.empty:
             session["email"] = email
             session["name"] = user.iloc[0]["name"]
@@ -172,6 +183,38 @@ def logout():
 def index():
     return render_template("index.html")
 
+def resolve_app_id(user_input):
+    """
+    Resolves app_id using:
+    1. NBFC mapping (playstore_name)
+    2. Direct app_id
+    3. Play Store search
+    """
+
+    user_input = user_input.strip().lower()
+
+    # 1️⃣ Try NBFC mapping by playstore_name
+    for _, row in df_nbfc.iterrows():
+        if user_input == str(row["playstore_name"]).lower():
+            return row["app_id"]
+
+    # 2️⃣ Try direct app_id
+    try:
+        playstore_app(user_input)
+        return user_input
+    except:
+        pass
+
+    # 3️⃣ Fallback to Play Store search
+    try:
+        results = search(user_input, lang="en", country="in")
+        if results:
+            return results[0]["appId"]
+    except:
+        pass
+
+    return None
+
 @app.route("/predict", methods=["POST"])
 def predict():
     if not is_logged_in():
@@ -180,10 +223,9 @@ def predict():
     user_input = request.form.get("app_name")
     email = session["email"]
 
-    # ✅ FIX: prevent server crash
-    try:
-        details = playstore_app(user_input)
-    except NotFoundError:
+    resolved_app_id = resolve_app_id(user_input)
+
+    if not resolved_app_id:
         return render_template(
             "result.html",
             name=user_input,
@@ -191,12 +233,13 @@ def predict():
             installs="N/A",
             nbfc_registered="No",
             sentiment="Negative",
-            review_summary="App not found on Play Store. This is risky.",
+            review_summary="App not found on Play Store.",
             permission_risk="High Risk",
             status="Suspicious",
             reason="App does not exist on Google Play Store."
         )
 
+    details = playstore_app(resolved_app_id)
     app_title = details.get("title", user_input)
     app_id = details.get("appId", user_input)
     rating = details.get("score", 0)
@@ -249,6 +292,48 @@ def predict():
         status=status,
         reason=reason
     )
+@app.route("/report", methods=["POST"])
+def report():
+
+    if not is_logged_in():
+        return "Please login to report"
+
+    global df_reports
+
+    app_name = request.form.get("app_name", "").strip()
+    reason = request.form.get("reason", "").strip()
+    email = session.get("email")
+
+    if not app_name or not reason:
+        return "Invalid report data"
+
+    # 🔒 prevent duplicate reports by same user for same app
+    # ---------------- USER REPORT COUNT ----------------
+    report_count = get_report_count(app_name)
+
+# Keep existing info
+    if already_reported(email, app_name):
+            reason += " ⚠️ Reported earlier by users."
+
+# ---------------- USER REPORT BASED OVERRIDE ----------------
+    if report_count >= 10:
+     status = "Risky"
+     reason = (
+        f"This app has been reported by {report_count} users on LoanShield. "
+        "Multiple scam reports indicate high risk."
+    )
+
+    elif report_count >= 5 and status == "Safe":
+      status = "Caution"
+      reason += (
+        f" ⚠️ This app has been reported by {report_count} users on LoanShield."
+    )
+
+    # ✅ save report
+    df_reports.loc[len(df_reports)] = [email, app_name, reason]
+    df_reports.to_csv(REPORT_FILE, index=False)
+
+    return "Report submitted successfully"
 
 # ---------------- RUN ----------------
 if __name__ == "__main__":

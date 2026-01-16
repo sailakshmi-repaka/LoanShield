@@ -53,7 +53,8 @@
 <section id="scan" class="page-section">
     <h2>Scan Loan Application</h2>
 
-    <form action="/predict" method="POST">
+    <form id="scanForm">
+
         <input
             type="text"
             name="app_name"
@@ -70,6 +71,8 @@
             </button>
         {% endif %}
     </form>
+    <div id="scanResultBox"></div>
+
 </section>
 
 <!-- REPORT -->
@@ -102,6 +105,9 @@
                 </button>
             {% endif %}
         </form>
+        
+        <!-- ✅ ADD THIS LINE -->
+        <p id="reportMessage" style="margin-top:12px;font-weight:600;"></p>
     </div>
 </section>
 
@@ -124,25 +130,7 @@
 
 <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 
-<!-- ✅ REPORT FIX SCRIPT -->
-<script>
-document.getElementById("reportForm")?.addEventListener("submit", function(e) {
-    e.preventDefault();
 
-    const formData = new FormData(this);
-
-    fetch("/report", {
-        method: "POST",
-        body: formData
-    })
-    .then(res => res.text())
-    .then(msg => {
-        alert(msg);
-        this.reset();
-    })
-    .catch(() => alert("Error submitting report"));
-});
-</script>
 
 </body>
 </html>

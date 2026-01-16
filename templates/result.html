@@ -1,3 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">        
+<head>
+    <meta charset="UTF-8">
+    <title>Scan Result - Fake Loan App Detector</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+ <nav class="navbar">
+     <div class="nav-left">
+        <div class="logo">LoanShield</div>
+
+        {% if session.get('name') %}
+            <div class="greeting">Hi, {{ session['name'] }}</div>
+        {% endif %}
+    </div>
+    <ul class="nav-right">
+    <li>
+        <a href="/" onclick="localStorage.setItem('openSection','home')">
+            Home
+        </a>
+    </li>
+
+    <li>
+        <a href="/" onclick="localStorage.setItem('openSection','scan')">
+            Scan
+        </a>
+    </li>
+
+    <li>
+        <a href="/" onclick="localStorage.setItem('openSection','report')">
+            Report
+        </a>
+    </li>
+
+    <li>
+        <a href="/" onclick="localStorage.setItem('openSection','guidelines')">
+            Guidelines
+        </a>
+    </li>
+
+    {% if session.get('name') %}
+        <li><a href="/logout" class="logout-btn">Logout</a></li>
+    {% else %}
+        <li><a href="/login">Login</a></li>
+        <li><a href="/register" class="nav-btn">Register</a></li>
+    {% endif %}
+</ul>
+
+</nav>
+
 <div class="result-wrapper">
 
     <div class="result-card">
@@ -39,3 +90,5 @@
 </div>
 
 <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

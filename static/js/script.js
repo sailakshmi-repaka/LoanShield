@@ -10,34 +10,35 @@ function showSection(sectionId) {
     document.body.style.overflow = sectionId === "home" ? "hidden" : "auto";
 }
 
-/* ---------- SCAN FORM AJAX ---------- */
+/* ---------- SCAN & REPORT AJAX ---------- */
 document.addEventListener("DOMContentLoaded", function () {
 
-    // Scan app handler
+    /* ---------- SCAN FORM ---------- */
     const scanForm = document.getElementById("scanForm");
 
     if (scanForm) {
-        scanForm.addEventListener("submit", function (e) {
-            e.preventDefault();
+       scanForm.addEventListener("submit", function (e) {
+        e.preventDefault();
 
-            const formData = new FormData(scanForm);
-            const resultBox = document.getElementById("scanResultBox");
+        const formData = new FormData(scanForm);
+        const resultBox = document.getElementById("scanResultBox");
 
-            resultBox.innerHTML = "🔍 Scanning application...";
+        resultBox.innerHTML = "🔍 Scanning application...";
 
-            fetch("/predict", {
-                method: "POST",
-                body: formData
-            })
-            .then(res => res.text())
-            .then(html => {
-                resultBox.innerHTML = html;
-            })
-            .catch(() => {
-                resultBox.innerHTML = "❌ Error fetching result.";
-            });
+        fetch("/predict", {
+            method: "POST",
+            body: formData
+        })
+        .then(res => res.text())
+        .then(html => {
+            resultBox.innerHTML = html;   // ✅ RESULT STAYS IN SCAN
+        })
+        .catch(() => {
+            resultBox.innerHTML = "❌ Error fetching result.";
         });
-    }
+    });
+   }
+
 
     /* ---------- REPORT FORM ---------- */
     const reportForm = document.getElementById("reportForm");
@@ -55,9 +56,26 @@ document.addEventListener("DOMContentLoaded", function () {
             })
             .then(res => res.text())
             .then(data => {
+
+                /* 🔐 SAFETY CHECK (prevents HTML popup / 500 error) */
+                if (!data || data.trim() === "") {
+                    message.innerText = "Unexpected server response.";
+                    message.style.color = "red";
+                    return;
+                }
+
                 message.innerText = data;
-                message.style.color = "lightgreen";
-                reportForm.reset();
+
+                if (data.toLowerCase().includes("already")) {
+                    message.style.color = "orange";
+                }
+                else if (data.toLowerCase().includes("login")) {
+                    message.style.color = "red";
+                }
+                else {
+                    message.style.color = "lightgreen";
+                    reportForm.reset();
+                }
             })
             .catch(() => {
                 message.innerText = "Error submitting report.";
@@ -67,6 +85,8 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
 });
+
+/* ---------- OPEN SECTION AFTER REDIRECT ---------- */
 window.onload = function () {
     const section = localStorage.getItem("openSection");
     if (section) {
@@ -74,4 +94,3 @@ window.onload = function () {
         localStorage.removeItem("openSection");
     }
 };
-
