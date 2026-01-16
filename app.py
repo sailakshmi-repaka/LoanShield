@@ -25,6 +25,10 @@ for file, cols in [
 df_nbfc = pd.read_csv(NBFC_FILE)
 df_reports = pd.read_csv(REPORT_FILE)
 
+# Clean NBFC CSV ONCE (SAFE)
+df_nbfc["app_id"] = df_nbfc["app_id"].astype(str).str.strip().str.lower()
+df_nbfc["playstore_name"] = df_nbfc["playstore_name"].astype(str).str.strip().str.lower()
+
 def load_users():
     df = pd.read_csv(USER_FILE)
     df["name"] = df["name"].astype(str).str.strip()
@@ -49,8 +53,9 @@ def get_report_count(app_name):
 
 # ---------------- CORE HELPERS ----------------
 def find_nbfc_by_app_id(app_id):
+    app_id = str(app_id).strip().lower()
     for _, row in df_nbfc.iterrows():
-        if str(row["app_id"]).lower() == str(app_id).lower():
+        if row["app_id"] == app_id:
             return True, row["nbfc_name"], row["type"]
     return False, None, None
 
@@ -78,28 +83,29 @@ def analyze_reviews(app_id, max_reviews=120):
         }
 
     positive_words = ["good", "easy", "fast", "helpful", "smooth", "best"]
-    negative_words = [ "scam", "fraud", "fake", "harassment", "privacy", "permission", "contacts", "sms", "threat", "abuse", "cheat" ] 
-    positive = 0 
-    negative = 0 
-    permission_mentions = 0 
-    for r in result: 
-        text = r.get("content", "").lower() 
-        if any(w in text for w in positive_words): 
-         positive += 1 
-        if any(w in text for w in negative_words): 
-          negative += 1 
-        if any(w in text for w in ["permission", "contacts", "sms", "privacy"]): 
-          permission_mentions += 1 
-    total = len(result) 
-    # ---- Sentiment ---- 
-    if negative / total > 0.25: 
-        sentiment = "Mostly Negative" 
-    elif positive / total > 0.5: 
-        sentiment = "Mostly Positive" 
-    else: sentiment = "Mixed"
+    negative_words = ["scam", "fraud", "fake", "harassment", "privacy", "permission", "contacts", "sms", "threat", "abuse", "cheat"]
+
+    positive = negative = permission_mentions = 0
+
+    for r in result:
+        text = r.get("content", "").lower()
+        if any(w in text for w in positive_words):
+            positive += 1
+        if any(w in text for w in negative_words):
+            negative += 1
+        if any(w in text for w in ["permission", "contacts", "sms", "privacy"]):
+            permission_mentions += 1
+
+    total = len(result)
+
+    if negative / total > 0.25:
+        sentiment = "Mostly Negative"
+    elif positive / total > 0.5:
+        sentiment = "Mostly Positive"
+    else:
+        sentiment = "Mixed"
 
     summary = f"Based on {total} recent user reviews: {positive} positive, {negative} negative complaints detected."
-
     return {"sentiment": sentiment, "summary": summary, "total": total}
 
 # ---------------- PERMISSION RISK ----------------
@@ -165,31 +171,35 @@ def predict():
     if not is_logged_in():
         return redirect("/login")
 
-    user_input = request.form.get("app_name").strip()
+    user_input = request.form.get("app_name", "").strip()
+    app_id = user_input
 
-    # 🔹 Resolve app name → app id (ADDED, NOT REPLACING)
+    # 🔹 CSV APP ID PRIORITY (SAFE ADD)
+    csv_match = df_nbfc[df_nbfc["playstore_name"] == user_input.lower()]
+    if not csv_match.empty:
+        app_id = csv_match.iloc[0]["app_id"]
+
     try:
-        if "." not in user_input:
-            search_results = search(user_input, n_hits=1)
-            if not search_results:
+        if "." not in app_id:
+            results = search(app_id, n_hits=1)
+            if not results:
                 raise NotFoundError
-            app_id = search_results[0]["appId"]
-        else:
-            app_id = user_input
+            app_id = results[0]["appId"]
 
         details = playstore_app(app_id)
     except:
+        nbfc_registered, _, _ = find_nbfc_by_app_id(app_id)
         return render_template(
             "result.html",
             name=user_input,
             rating="N/A",
             installs="N/A",
-            nbfc_registered="No",
+            nbfc_registered="Yes" if nbfc_registered else "No",
             sentiment="Unavailable",
-            review_summary="Unable to fetch Play Store data at the moment.",
+            review_summary="Play Store data could not be fetched. Try again later.",
             permission_risk="Unavailable",
             status="Caution",
-            reason="Play Store data could not be fetched. Try again later."
+            reason="Unable to fetch Play Store data at the moment."
         )
 
     app_title = details.get("title", user_input)
@@ -228,7 +238,7 @@ def predict():
         status = "Caution"
         reason = "Permission-related risks detected."
 
-    # ---------------- USER REPORT OVERRIDE (ADDED) ----------------
+    # ---------------- USER REPORT OVERRIDE (UNCHANGED) ----------------
     report_count = get_report_count(app_title)
 
     if report_count >= 10:
